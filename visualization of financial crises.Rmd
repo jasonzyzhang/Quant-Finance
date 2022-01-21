@@ -1,0 +1,459 @@
+---
+title: "visualization"
+author: "zhongyun zhang"
+date: "12/5/2020"
+output: pdf_document
+---
+
+```{r}
+library('dplyr')
+library('ggplot2')
+library("lubridate")
+library("readxl")
+library("zoo")
+library('ggthemes')
+```
+
+```{r pressure, echo=FALSE}
+visualization <- read.csv("C:/Users/zhong/Desktop/visualization.csv", header=TRUE)
+```
+
+```{r}
+visualization$ym <- visualization$Date %>% as.Date(format="%m/%d/%Y") %>% as.yearmon()
+visualization$Date <- visualization$Date %>% as.Date(format="%m/%d/%Y")
+```
+
+
+```{r}
+factor_names <- c("SMALL LoBM", "ME1 BM2", "SMALL HiBM", "BIG LoBM",  "ME2 BM2",  "BIG HiBM")
+sector_names <- c('Cnsmr', "Manuf", "HiTec", "Hlth ", "Other")
+```
+
+```{r}
+visualization %>% filter(portfolio %in% factor_names) %>% 
+                  ggplot(aes(x = Date, y = (Cum_Value), group=portfolio,
+                             color = portfolio)) + geom_line()+
+                  theme_wsj()+
+                  ggtitle('Cumulative Returns from 1990 to 2020')+
+                  theme(plot.title=element_text(size=16),
+                        legend.title = element_text(size = 12)) + 
+                  labs(color = "Growth/Value  \n Big/Small")
+```
+
+
+
+```{r}
+visualization %>% filter(portfolio %in% sector_names) %>% 
+                  
+          ggplot(aes(x = Date, y = Cum_Value, group=portfolio,color = portfolio)) +
+          geom_line()+ theme_wsj()+
+                  ggtitle('Cumulative Returns from 1990 to 2020')+
+                  theme(plot.title=element_text(size=16),
+                        legend.title = element_text(size = 12)) + 
+                  labs(color = "Five Major Sectors")
+```
+
+
+
+#crisis 1991
+
+```{r}
+visualization %>% filter(portfolio %in% factor_names) %>% 
+                  filter((ym>=1990) & (ym<=1991)) %>% 
+          ggplot(aes(x = Date, y = Cum_Value, group=portfolio,color = portfolio)) +
+          geom_line()+
+          theme_wsj()+
+                  ggtitle('Visualization of the 1990-1991 Recession')+
+                  theme(plot.title=element_text(size=16),
+                        legend.title = element_text(size = 12)) + 
+                  labs(color = "Growth/Value  \n Big/Small")
+```
+
+
+
+```{r}
+visualization %>% filter(portfolio %in% sector_names) %>% 
+                  filter((ym>=1990) & (ym<=1991)) %>% 
+          ggplot(aes(x = Date, y = Cum_Value, group=portfolio,color = portfolio)) +
+          geom_line()+
+          theme_wsj()+
+          ggtitle('Visualization of the 1990-1991 Recession')+
+          theme(plot.title=element_text(size=16),
+                legend.title = element_text(size = 12)) + 
+          labs(color = "Sectors ")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+The Dot-com Bubble and  Crash of 2000-2002
+```{r}
+visualization %>% filter(portfolio %in% factor_names) %>% 
+                  filter((ym>=1999) & (ym<=2001)) %>% 
+          ggplot(aes(x = Date, y = Cum_Value-3, group=portfolio,color = portfolio)) +
+          geom_line()+
+          theme_economist()+
+          ggtitle('The Dot-com Bubble and the 2000 Stock Market Crash')+
+          theme(plot.title=element_text(size=16),
+                legend.title = element_text(size = 12),
+                legend.text = element_text(size = 10)) + ylab ('Cumulative Return Since 1990')+
+          labs(color = "Growth/Value  \n Big/Small")
+```
+
+```{r}
+visualization %>% filter(portfolio %in% sector_names) %>% 
+                  filter((ym>=1999) & (ym<=2001)) %>% 
+          ggplot(aes(x = Date, y = Cum_Value-3, group=portfolio,color = portfolio)) +
+          geom_line()+
+          theme_economist()+
+          ggtitle('The Dot-com Bubble and the 2000 Stock Market Crash')+
+          theme(plot.title=element_text(size=16),
+                legend.title = element_text(size = 12),
+                legend.text = element_text(size = 10)) + ylab ('Cumulative Return Since 1990')+
+          labs(color = "Sectors ")
+```
+
+```{r}
+visualization %>% filter(portfolio %in% sector_names) %>% 
+                  filter((ym>=1999) & (ym<=2001)) %>% 
+          ggplot(aes(x = Date)) +
+          geom_line(aes(y = Cum_Value, group=portfolio,
+                        color = portfolio),linetype='longdash') + 
+          geom_line(aes(y = VIX/3, color = 'VIX'), size=1, alpha=0.5)+
+          scale_y_continuous(name = 'Cumulative Values since 1990',
+                     sec.axis = sec_axis(~.*3, name="VIX"))+
+          theme_economist()+
+          
+          theme(plot.title=element_text(size=16),
+                legend.title = element_text(size = 12),
+                legend.text = element_text(size = 10)) + 
+          labs(title = 'The Dot-Com Bubble and the 2000 Stock Market Crash',
+               subtitle = '\n Technical Indicator: CBOE VIX', color = "Sectors ")
+```
+
+
+
+2001 by fundamental indicators
+
+```{r}
+visualization %>% filter(portfolio %in% sector_names) %>% 
+                  filter((ym>=1999) & (ym<=2001)) %>% 
+          ggplot(aes(x = Date)) +
+          geom_line(aes(y = Cum_Value, group=portfolio,
+                        color = portfolio),linetype='longdash') + 
+          geom_line(aes(y = Unemployment*2, color = 'Unemployment Rate'),
+                        size=1, alpha=0.5)+
+          scale_y_continuous(name = 'Cumulative Values since 1990',
+                     sec.axis = sec_axis(~./2, name='Unemployment Rate')) + 
+          theme_wsj() +
+          
+          theme(plot.title=element_text(size=12),
+                plot.subtitle=element_text(size=12),
+                legend.title = element_text(size = 12),
+                legend.text = element_text(size = 10)) + 
+          labs(title = 'The Dot-Com Bubble and the 2000 Stock Market Crash',
+               subtitle = 'Fundamental Indicator: Unemployment Rate', color = "Sectors ")
+```
+
+
+
+```{r}
+visualization %>% filter(portfolio %in% sector_names) %>% 
+                  filter((ym>=1999) & (ym<=2001)) %>% 
+          ggplot(aes(x = Date)) +
+          geom_line(aes(y = Cum_Value, group=portfolio,
+                        color = portfolio),linetype='longdash') + 
+          geom_line(aes(y = CPI.growth*300, color = 'CPI Growth Rate'),
+                        size=1, alpha=0.5)+
+          scale_y_continuous(name = 'Cumulative Values since 1990',
+                     sec.axis = sec_axis(~./300, name='CPI Growth Rate')) + 
+          theme_wsj() +
+            
+          theme(plot.title=element_text(size=12),
+                plot.subtitle=element_text(size=12),
+                legend.title = element_text(size = 12),
+                legend.text = element_text(size = 10)) + 
+          labs(title = 'The Dot-Com Bubble and the 2000 Stock Market Crash',
+               subtitle = 'Fundamental Indicator: CPI Daily Avg Growth Rate', color = "Sectors ")
+```
+
+
+
+```{r}
+visualization %>% filter(portfolio %in% sector_names) %>% 
+                  filter((ym>='July 1999') & (ym<='July 2001')) %>% 
+          ggplot(aes(x = Date)) +
+          geom_line(aes(y = Cum_Value-5, group=portfolio,
+                        color = portfolio),linetype='longdash') + 
+          geom_line(aes(y = PPI.growth*70, color = 'PPI Growth Rate'),
+                        size=1, alpha=0.5)+
+          scale_y_continuous(name = 'Cumulative Values since 1990',
+                     sec.axis = sec_axis(~./70, name='PPI Growth Rate')) + 
+          theme_wsj() +
+          theme(plot.title=element_text(size=12),
+                plot.subtitle=element_text(size=12),
+                legend.title = element_text(size = 12),
+                legend.text = element_text(size = 10)) + 
+          labs(title = 'The Dot-Com Bubble and the 2000 Stock Market Crash',
+               subtitle = 'Fundamental Indicator: PPI Daily Avg Growth Rate', color = "Sectors ")
+```
+
+
+```{r}
+visualization %>% filter(portfolio %in% sector_names) %>% 
+                  filter((ym>='July 1999') & (ym<='July 2001')) %>% 
+          ggplot(aes(x = Date)) +
+          geom_line(aes(y = Cum_Value-5, group=portfolio,
+                        color = portfolio),linetype='longdash') + 
+          geom_line(aes(y = SF.Tech.growth*2000, color = 'SF Tech Growth Rate'),
+                        size=1, alpha=0.5)+
+          scale_y_continuous(name = 'Cumulative Values since 1990',
+                     sec.axis = sec_axis(~./2000, name='SF Tech Growth Rate')) + 
+          theme_wsj() +
+          
+          theme(plot.title=element_text(size=12),
+                plot.subtitle=element_text(size=12),
+                legend.title = element_text(size = 12),
+                legend.text = element_text(size = 10)) + 
+          labs(title = 'The Dot-Com Bubble and the 2000 Stock Market Crash',
+               subtitle = 'Fundamental Indicator: SF Tech Index Daily Avg Growth Rate', color = "Sectors ")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+The 2007-08 Financial Crisis  
+
+by sectors
+
+```{r}
+visualization %>% filter(portfolio %in% factor_names) %>% 
+                  filter((ym>='Dec 2007') & (ym<='March 2009')) %>% 
+          ggplot(aes(x = Date, y = Cum_Value-3, group=portfolio,color = portfolio)) +
+          geom_line()+
+          theme_economist()+
+          ggtitle('The Stock Market Trend During the 2007-08 Financial Crisis')+
+          theme(plot.title=element_text(size=16),
+                legend.title = element_text(size = 12),
+                legend.text = element_text(size = 10)) + ylab ('Cumulative Returns')+
+          labs(color = "Growth/Value  \n Big/Small")
+
+```
+
+
+
+```{r}
+visualization %>% filter(portfolio %in% sector_names) %>% 
+                  filter((ym>='Dec 2007') & (ym<='March 2009')) %>% 
+          ggplot(aes(x = Date, y = Cum_Value-5, group=portfolio,color = portfolio)) +
+          geom_line()+
+          theme_economist()+
+          ggtitle('The Stock Market Trend During the 2007-08 Financial Crisis')+
+          theme(plot.title=element_text(size=16),
+                legend.title = element_text(size = 12),
+                legend.text = element_text(size = 10)) + ylab ('Cumulative Returns')+
+          labs(color = "Sectors ")
+
+```
+
+
+VIX - factor
+```{r}
+visualization %>% filter(portfolio %in% factor_names) %>% 
+                  filter((ym>='May 2008') & (ym<='July 2009')) %>% 
+          ggplot(aes(x = Date)) +
+          geom_line(aes(y = Cum_Value, group=portfolio,
+                        color = portfolio),linetype='longdash') + 
+          geom_line(aes(y = `VIX`/5, color = 'VIX'), size=1, alpha=0.5)+
+          scale_y_continuous(name = 'Cumulative Values since 1990',
+                     sec.axis = sec_axis(~.*5, name='VIX'))+
+          theme_economist()+
+          theme(plot.title=element_text(size=13),
+                plot.subtitle=element_text(size=12),
+                legend.title = element_text(size = 9),
+                legend.text = element_text(size = 10)) + 
+          labs(title = '            Visualization of the Market Trend during the 2007-08 Financial Crisis',
+               subtitle = 'Technical Indicator: CBOE VIX', 
+               color = "Factors:     \nGrowth/Value \nBig/Small")
+```
+
+P/C Ratio - factor
+```{r}
+visualization %>% filter(portfolio %in% factor_names) %>% 
+                  filter((ym>='May 2008') & (ym<='July 2009')) %>% 
+          ggplot(aes(x = Date)) +
+          geom_line(aes(y = Cum_Value, group=portfolio,
+                        color = portfolio),linetype='longdash') + 
+          geom_line(aes(y = `CBOE.Equity.P.C`*12, color = 'CBOE Put/Call'),
+                    size=1, alpha=0.5)+
+          scale_y_continuous(name = 'Cumulative Values since 1990',
+                     sec.axis = sec_axis(~./12, name='P/C Ratio'))+
+          theme_economist()+
+          theme(plot.title=element_text(size=13),
+                plot.subtitle=element_text(size=12),
+                legend.title = element_text(size = 9),
+                legend.text = element_text(size = 10)) + 
+          labs(title = '         Visualization of the Market Trend during the 2007-08 Financial Crisis',
+               subtitle = 'Technical Indicator: CBOE Equity Put/Call Ratio', color = 
+                 "Factors:     \nGrowth/Value \nBig/Small")
+```
+
+VIX - sector
+```{r}
+visualization %>% filter(portfolio %in% sector_names) %>% 
+                  filter((ym>='May 2008') & (ym<='July 2009')) %>% 
+          ggplot(aes(x = Date)) +
+          geom_line(aes(y = Cum_Value, group=portfolio,
+                        color = portfolio),linetype='longdash') + 
+          geom_line(aes(y = `VIX`/7, color = 'VIX'), size=1, alpha=0.5)+
+          scale_y_continuous(name = 'Cumulative Values since 1990',
+                     sec.axis = sec_axis(~.*7, name='VIX'))+
+          theme_economist()+
+          theme(plot.title=element_text(size=13),
+                plot.subtitle=element_text(size=12),
+                legend.title = element_text(size = 9),
+                legend.text = element_text(size = 10)) + 
+          labs(title = '           Visualization of the Market Trend during the 2007-08 Financial Crisis',
+               subtitle = 'Technical Indicator: CBOE VIX', color = 
+                 "Five Major Sectors")
+```
+
+P/C sector
+```{r}
+visualization %>% filter(portfolio %in% sector_names) %>% 
+                  filter((ym>='May 2008') & (ym<='July 2009')) %>% 
+          ggplot(aes(x = Date)) +
+          geom_line(aes(y = Cum_Value, group=portfolio,
+                        color = portfolio),linetype='longdash') + 
+          geom_line(aes(y = `CBOE.Equity.P.C`*9, color = 'CBOE Put/Call'),
+                    size=1, alpha=0.5)+
+          scale_y_continuous(name = 'Cumulative Values since 1990',
+                     sec.axis = sec_axis(~./9, name='P/C Ratio')) + 
+          theme_economist()+
+          theme(plot.title=element_text(size=13),
+                plot.subtitle=element_text(size=12),
+                legend.title = element_text(size = 9),
+                legend.text = element_text(size = 10)) + 
+          labs(title = '            Visualization of the Market Trend during the 2007-08 Financial Crisis',
+               subtitle = '  Technical Indicator: CBOE Equity Put/Call Ratio', color = 
+                 "Five Major Sectors")
+```
+
+Unemployment sector
+```{r}
+visualization %>% filter(portfolio %in% sector_names) %>% 
+                  filter((ym>='June 2007') & (ym<='July 2009')) %>%  
+          ggplot(aes(x = Date)) +
+          geom_line(aes(y = (Cum_Value), group=portfolio,
+                        color = portfolio),linetype='longdash') + 
+          geom_line(aes(y = (Unemployment/1), color = 'Unemployment Rate'),
+                        size=1, alpha=0.5) +
+          scale_y_continuous(name = 'Cumulative Values since 1990',
+                     sec.axis = sec_axis(~.*1, name='Unemployment Rate')) + 
+          theme_economist()+
+          theme(plot.title=element_text(size=13),
+                plot.subtitle=element_text(size=12),
+                legend.title = element_text(size = 9),
+                legend.text = element_text(size = 10)) + 
+          labs(title = '            Visualization of the Market Trend during the 2007-08 Financial Crisis',
+               subtitle = 'Fundamental Indicator: Unemployment Rate', color = 
+                 "Five Major Sectors")
+```
+
+
+CPI growth sector
+```{r}
+visualization %>% filter(portfolio %in% sector_names) %>% 
+                  filter((ym>='June 2007') & (ym<='July 2009')) %>%  
+          ggplot(aes(x = Date)) +
+          geom_line(aes(y = Cum_Value-5, group=portfolio,
+                        color = portfolio),linetype='longdash') + 
+          geom_line(aes(y = CPI.growth*50, color = 'CPI Growth Rate'),
+                        size=1, alpha=0.5)+
+          scale_y_continuous(name = 'Cumulative Values',
+                     sec.axis = sec_axis(~./50, name='CPI Growth Rate')) + 
+          theme_economist()+
+
+          theme(plot.title=element_text(size=13),
+                plot.subtitle=element_text(size=12),
+                legend.title = element_text(size = 9),
+                legend.text = element_text(size = 10)) + 
+          labs(title = '         Visualization of the Market Trend during the 2007-08 Financial Crisis',
+               subtitle = 'Fundamental Indicator: CPI Daily Avg Growth Rate', color = 
+                 "Five Major Sectors")
+```
+
+PPI growth sector
+```{r}
+visualization %>% filter(portfolio %in% sector_names) %>% 
+                  filter((ym>='June 2007') & (ym<='July 2009')) %>%  
+          ggplot(aes(x = Date)) +
+          geom_line(aes(y = (Cum_Value-5), group=portfolio,
+                        color = portfolio),linetype='longdash') + 
+          geom_line(aes(y = PPI.growth*20, color = 'PPI Growth Rate'),
+                        size=1, alpha=0.5)+
+          scale_y_continuous(name = 'Cumulative Values',
+                     sec.axis = sec_axis(~./20, name='PPI Growth Rate')) + 
+          theme_economist()+
+          theme(plot.title=element_text(size=13),
+                plot.subtitle=element_text(size=12),
+                legend.title = element_text(size = 9),
+                legend.text = element_text(size = 10)) + 
+          labs(title = '         Visualization of the Market Trend during the 2007-08 Financial Crisis',
+               subtitle = 'Fundamental Indicator: PPI Daily Avg Growth Rate', color = 
+                 "Five Major Sectors")
+```
+
+SF Tech growth sector
+```{r}
+visualization %>% filter(portfolio %in% sector_names) %>% 
+                  filter((ym>='June 2007') & (ym<='July 2009')) %>%  
+          ggplot(aes(x = Date)) +
+          geom_line(aes(y = Cum_Value-5, group=portfolio,
+                        color = portfolio),linetype='longdash') + 
+          geom_line(aes(y = (SF.Tech.growth)*3000, color = 'SF Tech Growth Rate'),
+                        size=1, alpha=0.5) +
+          scale_y_continuous(name = 'Cumulative Values',
+                     sec.axis = sec_axis(~./3000, name='SF Tech Growth Rate')) + 
+          theme_economist()+
+          
+          theme(plot.title=element_text(size=13),
+                plot.subtitle=element_text(size=12),
+                legend.title = element_text(size = 9),
+                legend.text = element_text(size = 10)) + 
+          labs(title = '        Visualization of the Market Trend during the 2007-08 Financial Crisis',
+               subtitle = '        Fundamental Indicator: San Francisco Tech Index Daily Avg Growth Rate',
+               color = "Five Major Sectors")
+```
