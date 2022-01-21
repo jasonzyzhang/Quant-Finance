@@ -1,0 +1,146 @@
+---
+title: "Risk and Return Application"
+author: "Zhongyun Zhang"
+date: "9/24/2020"
+output: pdf_document
+---
+```{r message=FALSE, warning=FALSE}
+library("readxl")
+library('lubridate')
+library('dplyr')
+library('zoo')
+library('moments')
+```
+
+```{r}
+rr <- read_excel("C:/Users/Zhongyun Zhang/desktop/data.xlsx", 
+                       sheet = 1, col_names = TRUE,
+                       col_types = "guess")
+
+rr$YearM <- rr$YearM %>% paste("01") %>%  as.Date(format = "%Y%m%d") %>% as.yearmon()
+```
+
+(a)
+```{r}
+describe <- function(df) {
+  desnames <- names(df)[-1]
+  ds <- NA
+  for (c in desnames) {
+    coln <- as.name(c)
+    output <- df %>% 
+            summarize(
+            m = round(mean(eval(coln), na.rm = T), 4)*100,
+            std = round(sd(eval(coln), na.rm = T), 4)*100,
+            sr = round(m/std,4)*100)
+    
+    ds = rbind(ds, output)
+  }
+descriptive_table <- as.data.frame(ds[-1,])
+rownames(descriptive_table) = desnames
+colnames(descriptive_table) = c('Mean (%)', 'Standard Deviation (%)', 'Sharpe Ratio (%)')
+print(descriptive_table)
+}
+```
+
+```{r}
+rr[c(-2)] %>% dplyr::filter(YearM > 1989 & YearM < 2001 ) %>% describe()
+rr[c(-2)]  %>% dplyr::filter(YearM > 2001 & YearM < 2011 ) %>% describe()
+rr[c(-2)]  %>% dplyr::filter(YearM > 2010) %>% describe()
+rr[c(-2)]  %>% describe()
+```
+
+
+The average returns and standard deviations of US Equity and US Bond are not stable over time.\
+
+The standard deviations of US Equity are generally stable across these three periods.
+But the average returns of US Equity in the 2000s have been significantly lower than those in the 1990s and those from 2011 to 2016. This may be because the Internet bubble and financial crisis occurred in the 2000s.\
+
+The standard deviations and average returns of US Bond are generally stable across these three periods. But there are also slight changes during the three periods. Specifically, the average excess return of US bond in the 2000s is higher than before the decade before 2000 and than the years after 2010. Moreover, after 2010, the standard deviation of US bond has decreased.\
+
+(b)\
+
+```{r}
+library("e1071")
+skls <- function(df) {
+  desnames <- names(df)[-1]
+  ds <- NA
+  for (c in desnames) {
+    coln <- as.name(c)
+    output <- df %>% 
+            summarize(
+            skewness = skewness(eval(coln)) %>% round (2),
+            kurtosis = e1071::kurtosis(eval(coln), type = 2) %>% round(2),
+            lpsd = sd(eval(coln)[eval(coln) < 0]*100) %>% round(2),
+            sr = mean(eval(coln)/lpsd * 100 * 100) %>% round(2))
+           
+    ds = rbind(ds, output)
+  }
+descriptive_table <- as.data.frame(ds[-1,])
+rownames(descriptive_table) = desnames
+colnames(descriptive_table) = c('Skewness', 'Kurtosis', 
+                                'Lower Partial SD (%)',
+                                'Sortino Ratio (%)')
+print(descriptive_table)
+}
+```
+
+```{r}
+rr[-c(2)] %>% skls()
+```
+
+High-yield Bond, Real Estate, and Hedge Fund are among the classes that exhibit the most negative skewness and highest kurtosis.\
+
+
+(c)\
+```{r}
+mvu <- function(df,g) {
+  desnames <- names(df)[-1]
+  ds <- NA
+  for (c in desnames) {
+    coln <- as.name(c)
+    output <- df %>% 
+            summarize(
+            MVU = round(mean(eval(coln)) - (g/2)*(var(eval(coln))),5)) 
+           
+    ds = rbind(ds, output)
+  }
+descriptive_table <- as.data.frame(ds[-1,])
+rownames(descriptive_table) = desnames
+colnames(descriptive_table) = c('Mean-Variance Utility')
+print(descriptive_table)
+}
+```
+
+```{r}
+mvu(rr, 2)
+mvu(rr, 10)
+```
+
+
+If $\gamma$ is 2,  Hedge Fund has the highest Mean-Variance Utility;\ 
+If $\gamma$ is 10, Hedge Fund has the highest Mean-Variance Utility\
+
+\
+\
+\
+
+(d)\
+```{r}
+cor(rr[c(-1,-2)],
+    use="pairwise",
+    method="pearson") %>% round(2)
+```
+US Bond index is mostly correlated with Foreign Bond index and leastly correlated with Emerging Market Equity.\
+\
+This is because both US Bond and Foreign Bond correlate with overall global economic conditions and similar investors' expectations.\
+And they are similarly used by investors to diversify their portfolio and decrease the volatities when they are also investing in equities.\
+The US Bond is leastly correlated with Emerging Market Equity mainly because they are in different market and represent different economic and investment activities. Moreover, investors may have choose to hedge US Bond against Emerging Market Equities or vice versa to decrease the volatilities of their portfolio.\
+
+
+Hedge Fund index is mostly correlated with US Equity and Emerging Market Equity and least correlated with US Bond.\
+This is likely because most hedge funds tend to mainly invest in the U.S. equity market and do not significantly participate in the US bond market.
+
+
+
+
+
