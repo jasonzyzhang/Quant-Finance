@@ -1,0 +1,399 @@
+---
+title: "Momentum Assignment"
+author: "Jason Zhongyun Zhang"
+date: "10/30/2020"
+output: word_document
+---
+
+```{r}
+library('dplyr')
+library('ggplot2')
+library("lubridate")
+library("readxl")
+library("zoo")
+```
+
+
+*Table 1 and Table 2 can be found both in the middle and at the end of the document
+
+
+0.1 Stock Price Data:\
+```{r}
+setwd('C:/Users/Zhong/Desktop/')
+crsp_monthly <- read.csv('crsp_monthly.csv')
+```
+
+
+```{r}
+df <- subset(crsp_monthly, (SHRCD==10 | SHRCD==11))
+#df$RET[df$RET!="C"] <- df$RET[df$RET!="C"] %>% as.character() %>% as.numeric()
+df$RET <- ifelse(df$RET=="", as.numeric(as.character(df$DLRET)), as.numeric(as.character(df$RET)))
+df$PRC <- abs(df$PRC)
+df$ym <- df$date %>% ymd %>% as.yearmon()
+df$Date <- df$ym %>% as.Date() %>% ymd()
+```
+
+
+
+
+0.2. Initial Strategy:\
+(1)\
+```{r}
+#To calculate the past returns for each stock-month observation
+months <- df$ym %>% unique() %>% sort
+```
+
+```{r eval=FALSE}
+past_year <- NA
+
+for (m in months[1]) {
+  t <- m %>% as.Date.yearmon()
+  t12 <- t %m-% months(12)
+  t1 <- t %m-% months(1)
+  output <- df %>% filter(Date >= t12 & Date <= t1) %>% group_by(PERMNO) %>% 
+    mutate(comp_return = cumprod(ifelse(is.na(RET), 1, (RET+1)))-1) %>% top_n(1, Date) %>% 
+    select(PERMNO, comp_return)
+  
+  colnames(output)[2] <- m %>% as.yearmon %>% as.character()
+  past_year <- output
+}
+
+for (m in months[-1]) {
+  t <- m %>% as.Date.yearmon()
+  t12 <- t %m-% months(12)
+  t1 <- t %m-% months(1)
+  output <- df %>% filter(Date >= t12 & Date <= t1) %>% group_by(PERMNO) %>% 
+    mutate(comp_return = cumprod(ifelse(is.na(RET), 1, (RET+1)))-1) %>% top_n(1, Date) %>% 
+    select(PERMNO, comp_return)
+  
+  colnames(output)[2] <- m %>% as.yearmon %>% as.character()
+  past_year <- full_join(past_year, output, by = "PERMNO")
+}
+```
+
+(2)\
+
+```{r eval=FALSE}
+#To build the function that calculates stock returns for the future x months
+future_returns <- function(x) {
+  for (m in months[1]) {
+  t <- m %>% as.Date.yearmon()
+  t1 <- t %m+% months(x)
+  output <- df %>% filter(Date > t & Date <= t1) %>% group_by(PERMNO) %>% 
+    mutate(comp_return = cumprod(ifelse(is.na(RET), 1, (RET+1)))-1) %>% 
+    top_n(1, Date) %>% select(PERMNO, comp_return)
+  
+  colnames(output)[2] <- m %>% as.yearmon %>% as.character()
+  future <- output
+  }
+  
+  for (m in months[-1]) {
+  t <- m %>% as.Date.yearmon()
+  t1 <- t %m+% months(x)
+  output <- df %>% filter(Date > t & Date <= t1) %>% group_by(PERMNO) %>% 
+    mutate(comp_return = cumprod(ifelse(is.na(RET), 1, (RET+1)))-1) %>% top_n(1, Date) %>% 
+    select(PERMNO, comp_return)
+  
+  colnames(output)[2] <- m %>% as.yearmon %>% as.character()
+  future <- full_join(future, output, by = "PERMNO")
+  }
+  return(future)
+}
+```
+
+```{r eval=FALSE}
+future_1m <- future_returns(1) 
+future_3m <- future_returns(3)
+future_6m <- future_returns(6)
+future_12m <- future_returns(12)
+future_60m <- future_returns(60)
+```
+
+(3)
+```{r}
+library(reshape2)
+```
+
+```{r eval=FALSE}
+#To change the format of above datasets and merge them into one combined dataset and then merge them with the above $5 stock-month observations
+df_5 <- subset(df, PRC >= 5)
+```
+
+
+```{r eval=FALSE}
+past_melted <- past_year %>% melt(id.vars = "PERMNO",
+                             value.name = "past_year_return")
+melted_future_1m <- future_1m %>% melt(id.vars = "PERMNO",
+                             value.name = "future_1_m")
+melted_future_3m <- future_3m %>% melt(id.vars = "PERMNO",
+                             value.name = "future_3_m")
+melted_future_6m <- future_6m %>% melt(id.vars = "PERMNO",
+                             value.name = "future_6_m")
+melted_future_12m <- future_12m %>% melt(id.vars = "PERMNO",
+                             value.name = "future_12_m")
+melted_future_60m <- future_60m %>% melt(id.vars = "PERMNO",
+                             value.name = "future_60_m")
+```
+
+
+
+```{r eval=FALSE}
+combined <- past_melted %>% left_join(melted_future_1m, by = c("PERMNO", "variable")) %>% 
+                            left_join(melted_future_3m) %>% 
+                            left_join(melted_future_6m) %>% 
+                            left_join(melted_future_12m) %>% 
+                            left_join(melted_future_60m) 
+```
+
+```{r eval=FALSE}
+names(combined)[2] <- "ym"
+combined$ym <- combined$ym %>% as.character %>% as.yearmon
+```
+
+
+```{r eval=FALSE}
+portfolio <- left_join(df_5, combined, by = c("PERMNO", "ym"))
+```
+
+```{r eval=FALSE}
+portfolio$dt <- portfolio$ym %>% as.Date
+```
+
+```{r}
+#setwd('C:/Users/Zhong/Desktop/')
+#write.csv(portfolio, "portfolio.csv")
+```
+
+```{r}
+# I reloaded the csv here to save memory and make the rmd file knittable
+setwd('C:/Users/Zhong/Desktop/')
+portfolio <- read.csv('portfolio.csv')
+portfolio$ym <- portfolio$dt %>% as.yearmon
+```
+
+
+(4)
+```{r}
+#To calculate the deciles based on past year return for each month and designate the top decile and the bottom decile for each month
+d_1_10 <- portfolio %>% group_by(ym) %>% 
+                summarize(monthly_d10 = quantile(past_year_return, probs = 0.90, na.rm = T),
+                          monthly_d1 = quantile(past_year_return, probs = 0.10, na.rm = T))
+
+portfolio <- left_join(portfolio, d_1_10, by = "ym")
+portfolio$up <- ifelse(portfolio$past_year_return > portfolio$monthly_d10, 1, 0)
+portfolio$down <- ifelse(portfolio$past_year_return < portfolio$monthly_d1, 1, 0)
+```
+
+(5)
+Portfolio return of an equal-weighted portfolio of Ups:
+```{r}
+ups <- portfolio %>% filter(up == 1) %>% group_by(ym) %>% 
+                                  summarize(portfl_return_1m = mean(future_1_m, na.rm = T),
+                                            portfl_return_3m = mean(future_3_m, na.rm = T),
+                                            portfl_return_6m = mean(future_6_m, na.rm = T),
+                                            portfl_return_12m = mean(future_12_m, na.rm = T),
+                                            portfl_return_60m = mean(future_60_m, na.rm = T))
+print(ups, n = 200)
+```
+
+Portfolio return of an equal-weighted portfolio of Downs
+```{r}
+downs <- portfolio %>% filter(down == 1) %>% group_by(ym) %>% 
+                                    summarize(portfl_return_1m = mean(future_1_m, na.rm = T),
+                                            portfl_return_3m = mean(future_3_m, na.rm = T),
+                                            portfl_return_6m = mean(future_6_m, na.rm = T),
+                                            portfl_return_12m = mean(future_12_m, na.rm = T),
+                                            portfl_return_60m = mean(future_60_m, na.rm = T))
+print(downs, n = 200)
+```
+(6)
+To calculate the long-short strategy for the above two portfolios
+```{r}
+long_short <- left_join(ups, downs, by = "ym")
+
+long_short$portfl_return_1m <- long_short$portfl_return_1m.x - long_short$portfl_return_1m.y
+long_short$portfl_return_3m <- long_short$portfl_return_3m.x - long_short$portfl_return_3m.y
+long_short$portfl_return_6m <- long_short$portfl_return_6m.x - long_short$portfl_return_6m.y
+long_short$portfl_return_12m <- long_short$portfl_return_12m.x - long_short$portfl_return_12m.y
+long_short$portfl_return_60m <- long_short$portfl_return_60m.x - long_short$portfl_return_60m.y
+
+umd <- long_short %>% select(ym, portfl_return_1m:portfl_return_60m)
+print(umd, n = 200)
+```
+
+0.2.1 Analyzing Strategy performance and backtesting
+(1)
+```{r}
+up_returns <- colMeans(ups[-1], na.rm = T)
+down_returns <- colMeans(downs[-1], na.rm = T)
+umd_returns <- colMeans(umd[-1], na.rm = T)
+
+table1 <- up_returns %>% rbind(down_returns) %>% rbind(umd_returns)
+rownames(table1) <- c("Ups", "Downs", "UMD")
+colnames(table1) <- c("Average Return 1 m", "3m", "6m", "12m", "60m")
+```
+
+
+```{r}
+print(table1)
+```
+
+(2)
+To do the t-test on top portfolios for 1m, 3m, 6m, 12m, and 60m returns
+```{r}
+apply(ups[-1], 2, t.test)
+```
+
+To do the t-test on bottom portfolios for 1m, 3m, 6m, 12m, and 60m returns
+```{r}
+apply(downs[-1], 2, t.test)
+```
+
+To do the t-test on the UMD short portfolios for 1m, 3m, 6m, 12m, and 60m returns
+```{r}
+apply(umd[-1], 2, t.test)
+```
+
+From the t-test, for winner stocks (up) portfolio, the t-test shows that the momentum can continue through 1 month up to 60 months;\
+For the loser stocks (down) portfolio, the 95 percent confidence interval is (-0.0023, 0.0083) for the 1 month returns, and the returns beyond 1 month through 60 months are positive at the 95% confidence intervals;\
+For the umd portfolio, returns are positive at the 95% confidence from 1 month to 12 months and negative in future 60 months.\
+
+
+(5)
+```{r}
+setwd("C:/Users/Zhong/Desktop/")
+
+FF <- read.csv('F-F_Research_Data_5_Factors_2x3.csv')
+FF <- FF[1:687,]
+FF <- apply(FF[1:7], 2, as.numeric)
+FF <- FF %>% as.data.frame()
+FF$ym <- FF$Date %>% as.character %>% paste("01") %>%  as.Date("%Y%m%d") %>% as.yearmon()
+```
+
+
+```{r}
+one_month_returns <- ups[1:2] %>% merge(downs[1:2], by = "ym") %>% merge(umd[1:2], by = "ym")
+colnames(one_month_returns) <- c("ym", "ups", "downs", "umd")
+one_month_returns <- one_month_returns %>% left_join(FF)
+```
+
+
+```{r}
+lm_ups_5_factor <- lm(data = one_month_returns, ups ~ Mkt.RF+SMB+HML+RMW+CMA)
+lm_ups_5_factor %>% summary
+```
+
+```{r}
+lm_downs_5_factor <- lm(data = one_month_returns, downs ~ Mkt.RF+SMB+HML+RMW+CMA)
+lm_downs_5_factor %>% summary
+```
+
+```{r}
+lm_umd_5_factor <- lm(data = one_month_returns, umd ~ Mkt.RF+SMB+HML+RMW+CMA)
+lm_umd_5_factor %>% summary
+```
+
+To get table 2 from the regression models
+```{r}
+alpha_ups <- summary(lm_ups_5_factor)$coefficient[1,c(1,4)]
+alpha_downs <- summary(lm_downs_5_factor)$coefficient[1,c(1,4)]
+alpha_umd <- summary(lm_umd_5_factor)$coefficient[1,c(1,4)]
+
+table2 <- alpha_ups %>% rbind(alpha_downs) %>% rbind(alpha_umd)
+rownames(table2) <- c("Alpha Up", "Alpha Down", "Alpha UMD")
+```
+
+To print table 2
+```{r}
+print(table2)
+```
+
+From the regression models, both up and umd portfolios show positive and significant contribution to the momentum strategy's alpha whereas the down portfolio does not show statistically significant alpha to the momentum strategy. Moreover, up contributes more to the momentum strategy's alpha with intercept as 1.70%.
+
+
+
+(6)
+```{r}
+cum_returns <- one_month_returns %>% mutate(cum_ups = cumprod(1+ups)-1,
+                              cum_downs = cumprod(1+downs)-1,
+                              cum_umd = cumprod(1+umd)-1) %>% 
+                      select(ym, cum_ups, cum_downs, cum_umd) 
+
+cum_returns %>% melt(measure.vars = c("cum_ups", "cum_downs", "cum_umd")) %>% 
+  ggplot(aes(ym, value, group = variable, color = variable)) + 
+  geom_line() + xlab("Date") + ylab("Cumulative Returns") + 
+  ggtitle("Cumulative return to the Up, Down, and UMD one-month strategy") + 
+  scale_color_discrete(labels = c("Up", "Down", "UMD"), name = "Portfolio") +
+  theme_bw()
+```
+
+
+(7)
+```{r}
+one_month_returns %>% top_n(-5, umd) %>% select(ym, umd)
+```
+```{r}
+one_month_returns %>% filter((ym >= 1932 & ym < 1933) |
+                              (ym >= 1938 & ym < 1940) |
+                               (ym >= 2009 & ym < 2010)) %>% select(ym, ups)
+```
+The one-month momentum strategy of UMD incurred its 5 largest losses in 1932, 1938, 1939, and 2009, which are immediately after the financial crises and market crashes in 1932, 1938, and 2008.
+
+The UMD for future 1 month return had huge losses mainly because the portfolio was shorting the "downs" that was having a rapid rebound and recovery from the preceding market crash during the recessions.
+
+The Up portfolio performed did not perform very well in most months of those years, although there are several months in which the portfolio generated positive returns in those years. So the losses of UMD in those years are mainly because of the shorting previous "downs" than buying the previous "ups".
+
+(8)
+```{r}
+rolling_3_yr_return_ups <- rollapplyr(one_month_returns$ups, 36, function(x) prod(1 + x) - 1, fill = NA)
+rolling_3_yr_return_downs <- rollapplyr(one_month_returns$downs, 36, function(x) prod(1 + x) - 1, fill = NA)
+rolling_3_yr_return_umd <- rollapplyr(one_month_returns$umd, 36, function(x) prod(1 + x) - 1, fill = NA)
+
+rolling_3_yr_return <- cbind(rolling_3_yr_return_ups, rolling_3_yr_return_downs) %>% 
+                       cbind(rolling_3_yr_return_umd)
+
+rolling_3_yr_return <- rolling_3_yr_return %>% as.data.frame()
+rownames(rolling_3_yr_return) <- months[3:1129]
+colnames(rolling_3_yr_return) <- c("Ups", "Downs", "UMD")
+```
+
+
+To show the signs of the 3 year rolling window returns of up, down, and umd portfolios
+```{r}
+table(sign(rolling_3_yr_return$Ups))
+table(sign(rolling_3_yr_return$Downs))
+table(sign(rolling_3_yr_return$UMD))
+```
+
+To calculate the percentage
+```{r}
+table(rolling_3_yr_return$Ups < 0)[[2]]/table(!is.na(rolling_3_yr_return$Ups))[[2]]
+table(rolling_3_yr_return$Downs < 0)[[2]]/table(!is.na(rolling_3_yr_return$Downs))[[2]]
+table(rolling_3_yr_return$UMD < 0)[[2]]/table(!is.na(rolling_3_yr_return$UMD))[[2]]
+```
+
+Among all periods with no NA values (starting after 36 months after the first month):
+For ups, 13.20% of the 3-year overlapping periods exhibit negative returns
+For downs, 48.21% of the 3-year overlapping periods exhibit negative returns
+For umd, 11.10% of the 3-year overlapping periods exhibit negative returns
+
+
+
+
+Table 1
+
+```{r}
+print(table1)
+```
+Table 2
+```{r}
+print(table2)
+```
+
+
+
+
+
+
+
+
